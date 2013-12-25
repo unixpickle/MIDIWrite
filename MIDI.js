@@ -295,4 +295,4 @@ function MIDI_generator() {
 }
 
 MIDI = MIDI_generator();
-if (module) module.exports = MIDI;
+if (typeof module != 'undefined') module.exports = MIDI;

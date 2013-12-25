@@ -1,0 +1,57 @@
+<html>
+    <head>
+        <title>MIDI Demo</title>
+        <script src="MIDI.js" type="text/javascript"></script>
+        <script type="text/javascript">
+        
+        function downloadMIDI() {
+            var file = new MIDI.BasicFile(8); // 8 units is 1 quarter note
+
+            // create a track
+            var track1 = new MIDI.BasicTrack();
+
+            // add a silly little tune
+            track1.addNote(3, 'C#', 0, 4);
+            track1.addNote(3, 'D#', 8, 4);
+            track1.addNote(3, 'D', 16, 4);
+            track1.addNote(3, 'E', 8, 4);
+            for (var i = 0; i < 2; i++) {
+                track1.addNote(3, 'A', i == 0 ? 16 : 8, 4);
+                track1.addNote(3, 'G#', 8, 4);
+                track1.addNote(3, 'G', 8, 4);
+                track1.addNote(3, 'F#', 8, 4);
+                track1.addNote(3, 'F', 8, 4);
+            }
+
+            // an example of adding raw MIDI events
+            for (var i = 12; i < 100; i++) {
+                track1.addEvent(new MIDI.ChannelEvent(28, MIDI.ChannelEvent.NOTE_ON, 0, i, 0x7f));
+                track1.addEvent(new MIDI.ChannelEvent(4, MIDI.ChannelEvent.NOTE_OFF, 0, i, 0));
+            }
+
+            // end the track and add it to our file
+            track1.end();
+            file.addTrack(track1);
+            var encoded = file.encode();
+            var uriEncoded = encodeURIComponent(String.fromCharCode.apply(null, encoded));
+            var hexStr = "";
+            for (var i = 0; i < encoded.length; i++) {
+                var s = encoded[i].toString(16);
+                if (s.length == 1) s = '0' + s;
+                hexStr += '%' + s;
+            }
+            var uriContent = 'data:application/octet-stream,' + hexStr;
+            var pom = document.createElement('a');
+            pom.setAttribute('href', uriContent);
+            pom.setAttribute('download', 'output.mid');
+            document.body.appendChild(pom);
+            pom.click();
+            document.body.removeChild(pom);
+        }
+        
+        </script>
+    </head>
+    <body>
+        <button onclick="downloadMIDI()">Download MIDI</button>
+    </body>
+</html>
