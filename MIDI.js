@@ -81,6 +81,15 @@ function MIDI_generator() {
         this.events.push(e);
     }
     
+    /**
+     * A channel event is what it sounds like: an event from a keyboard
+     * or other instrument.
+     *
+     * Create a NOTE_ON channel event:
+     *  new ChannelEvent(delay, ChannelEvent.NOTE_ON, CHANNEL, NOTE, VELOCITY)
+     * Create a NOTE_OFF channel event:
+     *  new ChannelEvent(delay, ChannelEvent.NOTE_OFF, CHANNEL, NOTE, 0)
+     */
     function ChannelEvent(deltaTime, eventType, channel, p1, p2) {
         var payload = [p1];
         if (typeof p2 == 'number') payload.push(p2);
@@ -123,9 +132,12 @@ function MIDI_generator() {
     ChannelEvent.CHANNEL_AFTERTOUCH = 0xd;
     ChannelEvent.PITCH_BEND = 0xe;
     
+    /**
+     * Octaves -1 through 9 (9 is half supported)
+     */
     ChannelEvent.noteIndex = function(octave, letter) {
         var scale = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
-        return scale.indexOf(letter) + (scale.length * octave);
+        return scale.indexOf(letter) + (scale.length * (octave + 1));
     }
     
     /**
@@ -182,7 +194,7 @@ function MIDI_generator() {
      * nn = Numerator
      * dd = Denominator (expressed as 2^dd)
      * cc = MIDI clocks per metronome tick
-     * bb = 1/13 notes per 24 midi clocks
+     * bb = 1/32 notes per 24 midi clocks
      */
     function TimeSignatureEvent(nn, dd, cc, bb) {
         MetaEvent.call(this, 0x58, new Uint8Array([nn, dd, cc, bb]));
@@ -222,6 +234,48 @@ function MIDI_generator() {
         return result;
     }
     
+    /**
+     * Basic file, used to represent easy-to-import MIDI
+     * files.
+     */
+    function BasicFile(tpb) {
+        File.call(this, 1, TimeDivision.ticksPerBeat(tpb));
+        
+        var header = new Track();
+        header.addEvent(new MIDI.SMTPEOffsetEvent(0, 0, 0, 0, 0));
+        header.addEvent(new MIDI.SetTempoEvent(500000));
+        header.addEvent(new MIDI.TimeSignatureEvent(4, 4, 2, 0x18, 8));
+        header.addEvent(new MIDI.EndOfTrackEvent());
+        this.tracks.push(header);
+    }
+    
+    BasicFile.prototype = Object.create(File.prototype);
+    
+    /**
+     * A BasicTrack contains a series of notes.
+     */
+    function BasicTrack() {
+        Track.call(this);
+    }
+    
+    BasicTrack.prototype = Object.create(Track.prototype);
+    
+    /**
+     * Example: track.addNote(3, 'C', 28, 4)
+     */
+    BasicTrack.prototype.addNote = function(octave, letter, delay, length, _channel) {
+        var channel = _channel || 0;
+        var note = ChannelEvent.noteIndex(octave, letter);
+        this.addEvent(new ChannelEvent(delay, MIDI.ChannelEvent.NOTE_ON,
+                                       channel, note, 0x7f));
+        this.addEvent(new ChannelEvent(length, MIDI.ChannelEvent.NOTE_OFF,
+                                       channel, note, 0));
+    }
+    
+    BasicTrack.prototype.end = function() {
+        this.addEvent(new EndOfTrackEvent());
+    }
+    
     return {
         TimeDivision: TimeDivision,
         Header: Header,
@@ -234,7 +288,9 @@ function MIDI_generator() {
         ChannelPrefixEvent: ChannelPrefixEvent,
         SequenceNumberEvent: SequenceNumberEvent,
         TimeSignatureEvent: TimeSignatureEvent,
-        File: File
+        File: File,
+        BasicFile: BasicFile,
+        BasicTrack: BasicTrack
     };
 }
 
